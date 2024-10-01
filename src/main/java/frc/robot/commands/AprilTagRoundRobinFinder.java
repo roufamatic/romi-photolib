@@ -33,6 +33,7 @@ public class AprilTagRoundRobinFinder extends SequentialCommandGroup {
     m_drivetrain = drivetrain;
     m_ntInstance = NetworkTableInstance.getDefault();
     m_ntInstance.startServer();
+    // "teenycam1" is a name I gave the camera using the PhotonVision web UI.
     m_camera = new PhotonCamera(m_ntInstance, "teenycam1");
     m_currentTag = 1;
 
