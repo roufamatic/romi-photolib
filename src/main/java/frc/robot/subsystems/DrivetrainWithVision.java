@@ -4,11 +4,16 @@
 
 package frc.robot.subsystems;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.util.ReplanningConfig;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.util.sendable.SendableRegistry;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
@@ -23,6 +28,7 @@ import org.photonvision.EstimatedRobotPose;
 public class DrivetrainWithVision extends SubsystemBase {
   private static final double kCountsPerRevolution = 1440.0;
   private static final double kWheelDiameterInch = 2.75591; // 70 mm
+  private static final double kTrackWidthMeters = 0.141;
 
   // The Romi has the left and right motors set to
   // PWM channels 0 and 1 respectively
@@ -45,10 +51,13 @@ public class DrivetrainWithVision extends SubsystemBase {
   private final BuiltInAccelerometer m_accelerometer = new BuiltInAccelerometer();
 
   private final DifferentialDriveKinematics m_kinematics =
-      new DifferentialDriveKinematics(Units.inchesToMeters(6));
+      new DifferentialDriveKinematics(kTrackWidthMeters);
+
 
   private final PhotonVisionSubsystem m_photonVisionSubsystem;
   private DifferentialDrivePoseEstimator m_poseEstimator;
+
+  private ChassisSpeeds m_robotRelativeChassisSpeeds = new ChassisSpeeds();
 
   /** Creates a new Drivetrain. */
   public DrivetrainWithVision(PhotonVisionSubsystem photonVisionSubsystem) {
@@ -75,8 +84,32 @@ public class DrivetrainWithVision extends SubsystemBase {
             new Pose2d(1, .5, Rotation2d.fromDegrees(90)), // Middle of the field, facing north
             VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(5)),
             VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30)));
+
+    AutoBuilder.configureRamsete(
+        () -> m_poseEstimator.getEstimatedPosition(),
+        this::resetPose,
+        () -> m_robotRelativeChassisSpeeds,
+        this::driveRobotRelative,
+        new ReplanningConfig(true, false),
+        () -> false,
+        this);
     resetEncoders();
   }
+
+  // Pathfinding  methods
+
+  public void resetPose(Pose2d pose) {
+    m_poseEstimator.resetPosition(
+      Rotation2d.fromRadians(m_gyro.getAngleX()),
+      new DifferentialDriveWheelPositions(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()),
+      pose);
+  }
+
+  public void driveRobotRelative(ChassisSpeeds speeds) {
+    m_diffDrive.arcadeDrive(speeds.vxMetersPerSecond, speeds.omegaRadiansPerSecond);
+  }
+
+  // Driving methods
 
   public void arcadeDrive(double xaxisSpeed, double zaxisRotate) {
     m_diffDrive.arcadeDrive(xaxisSpeed, zaxisRotate);

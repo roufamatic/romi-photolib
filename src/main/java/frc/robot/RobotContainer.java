@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import com.pathplanner.lib.auto.NamedCommands;
+
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
@@ -11,10 +13,15 @@ import frc.robot.commands.AprilTagRoundRobinFinder;
 import frc.robot.commands.ArcadeDrive;
 import frc.robot.commands.AutonomousDistance;
 import frc.robot.commands.AutonomousTime;
+import frc.robot.commands.TinyFieldInfinity;
 import frc.robot.subsystems.Drivetrain;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -61,14 +68,34 @@ public class RobotContainer {
     // is scheduled over it.
     m_drivetrain.setDefaultCommand(getArcadeDriveCommand());
 
-    // // Example of how to use the onboard IO
+    // Set up the drive characterization routine. This will generate the constants needed for
+    // trajectory following and path planning. Unfortunately it needs a lot of room to run -- 10 to 20 meters
+    // of space is recommended! For the Romi, this is currently bound to the "Z" key in teleoop.
+    // See https://docs.wpilib.org/en/stable/docs/software/advanced-controls/system-identification/index.html
+    JoystickButton jb = new JoystickButton(m_controller, 1);
+    var cmd = Commands.sequence(
+      Commands.print("sysIdDymanic Forward"),
+      m_drivetrain.sysIdDynamic(Direction.kForward),
+      Commands.print("sysIdDymanic Backward"),
+      m_drivetrain.sysIdDynamic(Direction.kReverse),
+      Commands.print("sysIdQuasistatic Forward"),
+      m_drivetrain.sysIdQuasistatic(Direction.kForward),
+      Commands.print("sysIdQuasistatic Backward"),
+      m_drivetrain.sysIdQuasistatic(Direction.kReverse)
+    );
+    
+    Trigger trigger = new Trigger(jb::getAsBoolean);
+    trigger.whileTrue(cmd);
+
+    // // Example of how to use the Romi onboard IO
     // Trigger onboardButtonA = new Trigger(m_onboardIO::getButtonAPressed);
     // onboardButtonA
     //     .onTrue(new PrintCommand("Button A Pressed"))
     //     .onFalse(new PrintCommand("Button A Released"));
 
     // Setup SmartDashboard options
-    m_chooser.setDefaultOption("AprilTag Round Robin",new AprilTagRoundRobinFinder(m_drivetrain));
+    m_chooser.setDefaultOption("AutoShoelace", TinyFieldInfinity.drive());
+    m_chooser.addOption("AprilTag Round Robin",new AprilTagRoundRobinFinder(m_drivetrain));
     m_chooser.addOption("Auto Routine Distance", new AutonomousDistance(m_drivetrain));
     m_chooser.addOption("Auto Routine Time", new AutonomousTime(m_drivetrain));
     SmartDashboard.putData(m_chooser);

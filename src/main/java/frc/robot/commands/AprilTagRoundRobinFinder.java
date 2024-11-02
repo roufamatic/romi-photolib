@@ -38,8 +38,8 @@ public class AprilTagRoundRobinFinder extends SequentialCommandGroup {
     // while the coprocessor has the client.
     m_ntInstance = NetworkTableInstance.getDefault();
     m_ntInstance.startServer();
-    // "teenycam1" is a name I gave the camera using the PhotonVision web UI.
-    m_camera = new PhotonCamera(m_ntInstance, "teenycam1");
+    // "teenycam" is a name I gave the camera using the PhotonVision web UI.
+    m_camera = new PhotonCamera(m_ntInstance, "teenycam");
     // This is the tag number we are currently looking for.
     m_currentTag = 1;
 
